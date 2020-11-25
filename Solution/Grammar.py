@@ -1,7 +1,7 @@
 from cmp.pycompiler import Grammar
 from AST import *
 
-def get_grammar(self):
+def get_grammar():
     # grammar
     G = Grammar()
 
@@ -14,7 +14,7 @@ def get_grammar(self):
     func_call, arg_list  = G.NonTerminals('<func-call> <arg-list>')
 
     # terminals
-    classx, let, defx, printx = G.Terminals('class let def print')
+    classx, let, defx = G.Terminals('class let def')
     semi, colon, comma, dot, opar, cpar, ocur, ccur = G.Terminals('; : , . ( ) { }')
     equal, plus, minus, star, div = G.Terminals('= + - * /')
     idx, num, new = G.Terminals('id int new')
@@ -84,4 +84,4 @@ def get_grammar(self):
     arg_list %= expr, lambda h,s: [ s[1] ]
     arg_list %= expr + comma + arg_list, lambda h,s: [ s[1] ] + s[3]
 
-    return G
+    return G, idx, num, ocur, ccur, semi

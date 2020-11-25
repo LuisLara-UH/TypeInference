@@ -1,4 +1,9 @@
 from cmp.utils import Token, tokenizer
+from Grammar import get_grammar
+
+G, idx, num, ocur, ccur, semi = get_grammar()
+
+fixed_tokens = { t.Name: Token(t.Name, t) for t in G.terminals if t not in { idx, num }}
 
 @tokenizer(G, fixed_tokens)
 def tokenize_text(token):

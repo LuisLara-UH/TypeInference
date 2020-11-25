@@ -1,4 +1,5 @@
 import cmp.visitor as visitor
+from AST import *
 
 class FormatVisitor(object):
     @visitor.on('node')
