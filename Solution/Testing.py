@@ -1,4 +1,7 @@
 from TypeTools import run_pipeline
+from Grammar import get_grammar
+
+G, _, _, _, _, _, _ = get_grammar()
 
 text = '''
 class A {
