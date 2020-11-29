@@ -154,8 +154,38 @@ def tokenizer(G, fixed_tokens):
                     except TypeError:
                         pass
                 tokens.append(token)
-            tokens.append(Token('$', G.EOF))
-            return tokens
+            index = 0
+            quote_finded = False
+            new_tokens = []
+            for t in G.terminals:
+                if t.Name == 'string':
+                    string = t
+
+            while index < len(tokens):
+                if not quote_finded and tokens[index].lex == '"':
+                    print('Entra')
+                    quote_finded = True
+                    string_writed = ''
+
+                elif quote_finded and tokens[index].lex == '"':
+                    print("entre cerrar comillas")
+                    quote_finded = False
+                    new_tokens.append(Token(string_writed, string))
+
+                elif quote_finded:
+                    string_writed += ' ' + tokens[index].lex
+
+                else:
+                    new_tokens.append(tokens[index])
+
+                index += 1
+                    
+            if quote_finded:
+                print('cierra comillas')
+                return None
+
+            new_tokens.append(Token('$', G.EOF))
+            return new_tokens
 
         if hasattr(func, '__call__'):
             return tokenize_text

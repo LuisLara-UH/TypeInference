@@ -17,8 +17,11 @@ class TypeCollector(object):
     @visitor.when(ProgramNode)
     def visit(self, node):
         self.context = Context()
-        self.context.create_type('int')
-        self.context.create_type('void')
+        parent_type = self.context.create_type('object')
+        child_types = [self.context.create_type('str'), self.context.create_type('int'), self.context.create_type('void')]
+        for child in child_types:
+            child.set_parent(parent_type)
+
         for declaration in node.declarations:
             self.visit(declaration)
         
