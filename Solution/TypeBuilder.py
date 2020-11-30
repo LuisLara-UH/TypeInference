@@ -10,6 +10,7 @@ class TypeBuilder:
         self.context = context
         self.current_type = None
         self.errors = errors
+        self.basic_types = [self.context.get_type('AUTO_TYPE'), self.context.get_type('SELF_TYPE'), self.context.get_type('int'), self.context.get_type('str'), self.context.get_type('bool'), self.context.get_type('void'), self.context.get_type('IO')]
     
     @visitor.on('node')
     def visit(self, node):
@@ -27,10 +28,24 @@ class TypeBuilder:
         if not node.parent is None:
             try:
                 parent = self.context.get_type(node.parent)
+                if parent in self.basic_types:
+                    self.errors.append('Class ' + node.id + ' cant inherit from ' + parent.name)
+                    parent = ErrorType()
                 self.current_type.set_parent(parent)
+                
+                actual_type = self.current_type.parent
+                while not actual_type is None:
+                    if actual_type.parent == self.current_type:
+                        self.errors.append('Circular dependency at class ' + node.id)
+                        self.current_type.set_parent(ErrorType())
+                    actual_type = actual_type.parent
+
             except SemanticError as error:
                 self.errors.append(error.text)
         
+        else:
+            self.current_type.set_parent(self.context.get_type('object'))
+
         for feature in node.features:
             self.visit(feature)
             
@@ -41,7 +56,6 @@ class TypeBuilder:
         except SemanticError as error:
             self.errors.append(error.text)
             att_type = ErrorType()
-            
         try:
             self.current_type.define_attribute(node.id, att_type)
         except SemanticError as error:

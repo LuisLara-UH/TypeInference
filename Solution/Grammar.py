@@ -19,7 +19,7 @@ def get_grammar():
     classx, let, _in = G.Terminals('class let in')
     semi, colon, comma, dot, opar, cpar, ocur, ccur, at = G.Terminals('; : , . ( ) { } @')
     equal, plus, minus, star, div = G.Terminals('= + - * /')
-    idx, num, string, new = G.Terminals('id int string new')
+    idx, num, string, new, _self = G.Terminals('id int string new self')
     inheritsx, left_arrow, right_arrow, _not, isvoid, complement = G.Terminals('inherits <- => not isvoid ~')
     minor, minor_eq, true, false = G.Terminals('< <= true false')
     _if, fi, _else, then = G.Terminals('if fi else then')
@@ -47,10 +47,10 @@ def get_grammar():
     def_attr %= idx + colon + idx + left_arrow + expr, lambda h,s: AttrDeclarationNode(s[1], s[3], s[5])
 
     # <def-func>
-    def_func %= idx + opar + param_list + cpar + colon + idx + ocur + expr + ccur, lambda h,s: FuncDeclarationNode(s[2], s[4], s[7], s[9])
+    def_func %= idx + opar + param_list + cpar + colon + idx + ocur + expr + ccur, lambda h,s: FuncDeclarationNode(s[1], s[3], s[6], s[8])
 
     # <param-list>
-    param_list %= param_list_formal, lambda h,s: [ s[1] ]
+    param_list %= param_list_formal, lambda h,s:  s[1]
     param_list %= G.Epsilon, lambda h,s: []
 
     # <param-list-formal>
@@ -63,14 +63,14 @@ def get_grammar():
     # <expr>         
     expr %= arith, lambda h,s: s[1]
 
+    expr %= expr + minor + arith, lambda h,s: MinorNode(s[1], s[3])
+    expr %= expr + minor_eq + arith, lambda h,s: MinorEqualNode(s[1], s[3])
+    expr %= expr + equal + arith, lambda h,s: EqualNode(s[1], s[3])
+
     # <arith>        
     arith %= term, lambda h,s: s[1]
     arith %= arith + plus + term, lambda h,s: PlusNode(s[1], s[3])
     arith %= arith + minus + term, lambda h,s: MinusNode(s[1], s[3])
-
-    arith %= arith + minor + term, lambda h,s: MinorNode(s[1], s[3])
-    arith %= arith + minor_eq + term, lambda h,s: MinorEqualNode(s[1], s[3])
-    arith %= arith + equal + term, lambda h,s: EqualNode(s[1], s[3])
 
     # <term>         
     term %= atom, lambda h,s: s[1] 
@@ -81,6 +81,7 @@ def get_grammar():
     atom %= idx, lambda h,s: VariableNode(s[1])
     atom %= num, lambda h,s: ConstantNumNode(s[1])
     atom %= string, lambda h,s: StringNode(s[1])
+    atom %= _self, lambda h,s: SelfNode(s[1])
 
     atom %= true, lambda h,s: BooleanNode(s[1])
     atom %= false, lambda h,s: BooleanNode(s[1])
@@ -95,16 +96,16 @@ def get_grammar():
     #atom %= isvoid + atom, lambda h,s: IsVoidNode(s[2])
     #atom %= complement + atom, lambda h,s: ComplementNode(s[2])
     
-    #atom %= idx + left_arrow + atom, lambda h,s: AssignNode(s[1], s[3])
+    atom %= idx + left_arrow + atom, lambda h,s: AssignNode(s[1], s[3])
     
-    #atom %= if_expr, lambda h,s: s[1]
+    atom %= if_expr, lambda h,s: s[1]
     #atom %= while_expr, lambda h,s: s[1]
     #atom %= block, lambda h,s: s[1]
     #atom %= let_expr, lambda h,s: s[1]
     #atom %= case_expr, lambda h,s: s[1]
     
     # <if-expr>
-    #if_expr %= _if + expr + then + expr + _else + expr + fi, lambda h,s: ConditionalNode(s[2], s[4], s[6])
+    if_expr %= _if + expr + then + expr + _else + expr + fi, lambda h,s: ConditionalNode(s[2], s[4], s[6])
 
     # <while-expr>
     #while_expr %= _while + expr + loop + expr + pool, lambda h,s: LoopNode(s[2], s[4])

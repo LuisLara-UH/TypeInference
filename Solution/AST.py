@@ -103,20 +103,28 @@ class IsVoidNode(AtomicNode):
     pass
 class ComplementNode(AtomicNode):
     pass
+class SelfNode(AtomicNode):
+    pass
 class InstantiateNode(AtomicNode):
     pass
 
-class PlusNode(BinaryNode):
+class BinaryBooleanNode(BinaryNode):
     pass
-class MinusNode(BinaryNode):
+
+class BinaryArithNode(BinaryNode):
     pass
-class StarNode(BinaryNode):
+
+class PlusNode(BinaryArithNode):
     pass
-class DivNode(BinaryNode):
+class MinusNode(BinaryArithNode):
     pass
-class MinorNode(BinaryNode):
+class StarNode(BinaryArithNode):
     pass
-class MinorEqualNode(BinaryNode):
+class DivNode(BinaryArithNode):
     pass
-class EqualNode(BinaryNode):
+class MinorNode(BinaryBooleanNode):
+    pass
+class MinorEqualNode(BinaryBooleanNode):
+    pass
+class EqualNode(BinaryBooleanNode):
     pass

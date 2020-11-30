@@ -21,7 +21,7 @@ def run_pipeline(G, text):
     print('=================== TEXT ======================')
     print(text)
     print('================== TOKENS =====================')
-    tokens = tokenize_text('class A { a : str <- " otra palabra que no sea string " ; } ;')
+    tokens = tokenize_text(text)
     pprint_tokens(tokens)
     print('=================== PARSE =====================')
     parser = LR1Parser(G)
@@ -53,10 +53,16 @@ def run_pipeline(G, text):
 
     print('=============== CHECKING TYPES ================')
     checker = TypeChecker(context, errors)
-    scope = checker.visit(ast)
+    scope, errors = checker.visit(ast)
+    while(checker.changed):
+        scope, errors = checker.visit(ast)
     print('Errors: [')
     for error in errors:
         print('\t', error)
     print(']')
+    if len(errors) == 0:
+        print("hello")
+        checker.printer(ast)
+
 
     return ast, errors, context, scope

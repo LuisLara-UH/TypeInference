@@ -99,6 +99,8 @@ class Type:
         return plain.values() if clean else plain
 
     def conforms_to(self, other):
+        if self.name == 'AUTO_TYPE' or other.name == 'AUTO_TYPE':
+            return True
         return other.bypass() or self == other or self.parent is not None and self.parent.conforms_to(other)
 
     def bypass(self):
@@ -176,9 +178,10 @@ class Context:
         return str(self)
 
 class VariableInfo:
-    def __init__(self, name, vtype):
+    def __init__(self, name, vtype, is_att = False):
         self.name = name
         self.type = vtype
+        self.is_att = is_att
 
 class Scope:
     def __init__(self, parent=None):
@@ -195,8 +198,8 @@ class Scope:
         self.children.append(child)
         return child
 
-    def define_variable(self, vname, vtype):
-        info = VariableInfo(vname, vtype)
+    def define_variable(self, vname, vtype, is_att = False):
+        info = VariableInfo(vname, vtype, is_att)
         self.locals.append(info)
         return info
 
