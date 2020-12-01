@@ -28,7 +28,7 @@ class ShiftReduceParser:
                 self.action[state, lookahead.Name][0]
             except:
                 print(state, lookahead.Name)
-                return None
+                return None, lookahead.Name
                 
             action, tag = self.action[state, lookahead.Name][0]
             
@@ -53,4 +53,4 @@ class ShiftReduceParser:
                 return output, operations
 
             print(state, lookahead.Name)
-            return None
+            return None, lookahead.Name

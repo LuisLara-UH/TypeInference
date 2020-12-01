@@ -17,13 +17,18 @@ def tokenize_text(token):
 def pprint_tokens(tokens):
     indent = 0
     pending = []
+    ret_text = ''
     for token in tokens:
         pending.append(token)
         if token.token_type in { ocur, ccur, semi }:
             if token.token_type == ccur:
                 indent -= 1
             print('    '*indent + ' '.join(str(t.token_type) for t in pending))
+            ret_text += '    '*indent + ' '.join(str(t.token_type) for t in pending)
             pending.clear()
             if token.token_type == ocur:
                 indent += 1
     print(' '.join([str(t.token_type) for t in pending]))
+    ret_text += ' '.join([str(t.token_type) for t in pending])
+
+    return ret_text

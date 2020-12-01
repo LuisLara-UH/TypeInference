@@ -69,7 +69,7 @@ class Type:
 
     def get_method(self, name:str):
         try:
-            return next(method for method in self.methods if method.name == name)
+            return (self, next(method for method in self.methods if method.name == name))
         except StopIteration:
             if self.parent is None:
                 raise SemanticError(f'Method "{name}" is not defined in {self.name}.')

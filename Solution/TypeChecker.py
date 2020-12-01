@@ -148,7 +148,7 @@ class TypeChecker:
                 else:
                     conform_type = var_type    
                 if not expr_type.conforms_to(conform_type):
-                    self.errors.append(INCOMPATIBLE_TYPES % (expr_type.name, var_type.name))
+                    self.errors.append(INCOMPATIBLE_TYPES % (expr_type.name, conform_type.name))
                 if var_type == self.at and not expr_type == self.at:
                     self.changed_atts[(node.id, self.current_type)] = expr_type
                     self.changed = True
@@ -167,7 +167,7 @@ class TypeChecker:
         new_scope = scope.create_child()
         
         self.current_method = Method(node.id, [param[0] for param in node.params], [self.context.get_type(param[1]) for param in node.params], self.context.get_type(node.type))
-
+        
         actual_type = self.current_type
         while not actual_type.parent is None:
             actual_type = actual_type.parent
@@ -208,7 +208,12 @@ class TypeChecker:
             self.changed_methods[(node.id, self.current_type)]
         except KeyError:
             if node.type == self.at.name:
-                self.errors.append(AUTO_TYPE_ERROR % (node.id))    
+                self.errors.append(AUTO_TYPE_ERROR % (node.id))   
+
+        for param in node.params:
+            var = new_scope.find_variable(param[0])
+            if param[1] == 'AUTO_TYPE' and var.type == self.at:
+                self.errors.append(AUTO_TYPE_ERROR % (param[0]))
         
         
     @visitor.when(VarDeclarationNode)
@@ -225,10 +230,15 @@ class TypeChecker:
             scope.define_variable(node.id, var_type)
 
         if not node.expr is None:
-            type_expr = self.visit(node.expr, scope)
+            type_expr = self.visit(node.expr, scope, None)
 
             if not type_expr.conforms_to(var_type):
                 self.errors.append(INCOMPATIBLE_TYPES % (type_expr.name, var_type.name))
+            if type_expr == self.at and var_type == self.at:
+                self.errors.append(AUTO_TYPE_ERROR % (node.id))
+            if var_type == self.at and not type_expr == self.at:
+                node.type = type_expr.name
+                return type_expr
 
         return var_type
             
@@ -276,7 +286,7 @@ class TypeChecker:
 
     @visitor.when(AssignNode)
     def visit(self, node, scope, type_suggested=None):
-        expr_type = self.visit(node.expr, scope)
+        expr_type = self.visit(node.expr, scope, None)
         
         if not scope.is_defined(node.id):
             self.errors.append(VARIABLE_NOT_DEFINED % (node.id, self.current_method.name))
@@ -286,20 +296,24 @@ class TypeChecker:
             if not expr_type.conforms_to(var_type):
                 self.errors.append(INCOMPATIBLE_TYPES % (expr_type.name, var_type.name))
             
-            if var_type == self.at and not expr_type == self.at and var.is_att:
-                print('Cambio el tipo a', expr_type.name)
-                self.changed_atts[(node.id, self.current_type)] = expr_type
-                self.changed = True
-                
+            if var_type == self.at and not expr_type == self.at:
+                if var.is_att:
+                    self.changed_atts[(node.id, self.current_type)] = expr_type
+                    self.changed = True
+                else:
+                    node.type = expr_type.name
+            
         return expr_type
     
     @visitor.when(CallNode)
     def visit(self, node, scope, type_suggested=None):
-        if not node.id in [method.name for method in self.current_type.methods]:
-            self.errors.append(METHOD_NOT_DEFINED % (node.id, self.current_type.name))
+        try:
+            t, method = self.current_type.get_method(node.id)
+            print("recuperando metodo",t.name, method.name)
+        except SemanticError as e:
+            self.errors.append(e)
             return ErrorType()
-        
-        method = self.current_type.get_method(node.id)
+
         call_args_types = [self.visit(arg, scope, None) for arg in node.args]
         method_args_types = [param_type for param_type in method.param_types]
         if not len(call_args_types) == len(method_args_types):
@@ -312,7 +326,11 @@ class TypeChecker:
         if method.return_type.name == 'SELF_TYPE':
             ret_type = self.current_type
         else:
-            ret_type = method.return_type
+            if method.return_type == self.at:
+                try:
+                    ret_type = self.changed_methods[(method.name, t)]
+                except KeyError:    
+                    ret_type = method.return_type
                     
         return ret_type
 
@@ -332,14 +350,16 @@ class TypeChecker:
             self.errors.append('AUTO_TYPE error at function call ' + node.id)
             return ErrorType()
 
-        method = obj_type.get_method(node.id)
+        _, method = obj_type.get_method(node.id)
         if method is None:
+            print('Entra a dispatch 1')
             self.errors.append(METHOD_NOT_DEFINED % (node.id, obj_type.name))
             return ErrorType()
 
         call_args_types = [self.visit(arg, scope, None) for arg in node.args]
         method_args_types = [param_type for param_type in method.param_types]
         if not len(call_args_types) == len(method_args_types):
+            print('Entra a dispatch 2')
             self.errors.append(METHOD_NOT_DEFINED % (node.id, self.current_type.name))
         else:
             for i in range(len(call_args_types)):
@@ -461,7 +481,6 @@ class TypeChecker:
                         return type_suggested
             elif var.type == self.at:
                 if not type_suggested is None:
-                    print('type changed', type_suggested.name)
                     var.type = type_suggested
 
             return var.type
