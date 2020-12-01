@@ -16,6 +16,8 @@ def common_ancestor(type_list):
     for t in type_list:
         if t.name == '<error>':
             return ErrorType()
+        if not t.name == 'AUTO_TYPE':
+            actual_type = t
 
     visited.append(actual_type)
 
