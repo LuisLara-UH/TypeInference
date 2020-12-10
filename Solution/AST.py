@@ -42,6 +42,10 @@ class BranchNode(ExpressionNode):
         self.type = typex
         self.expr = expr
 
+class BlockNode(ExpressionNode):
+    def __init__(self, expr_list):
+        self.expr_list = expr_list
+
 class LetNode(ExpressionNode):
     def __init__(self, attr_decl, body):
         self.attr_decl = attr_decl

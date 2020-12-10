@@ -4,23 +4,18 @@ from Grammar import get_grammar
 G, _, _, _, _, _, _ = get_grammar()
 
 text = '''
-class A inherits B { 
-    F ( n : AUTO_TYPE ) : AUTO_TYPE
+class Main inherits IO { 
+    main ( ) : AUTO_TYPE
     {
-        if n <= 2 then self else F ( n - 1 ) fi
+        let x : AUTO_TYPE <- 3 in 
+            case x of
+                y : Int => out_string ( " OK " ) ;
+            esac
     } ;
 
  } ; 
- class B
- {
-     a : A ;
-     G ( n : AUTO_TYPE , p : AUTO_TYPE ) : AUTO_TYPE
-     {
-         a . F ( n )
-     } ;
- }    ;
 '''
 
 if __name__ == '__main__':
-    run_pipeline(G, text)
+    run_pipeline(text)
     #assert not errors

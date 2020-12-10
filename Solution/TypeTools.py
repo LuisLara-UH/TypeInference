@@ -1,5 +1,6 @@
 import cmp.nbpackage
 import cmp.visitor as visitor
+import os
 
 #import G, text
 from AST import *
@@ -17,6 +18,7 @@ from cmp.semantic import Context
 from LR1 import LR1Parser
 from cmp.evaluation import evaluate_reverse_parse
 from Grammar import get_grammar
+from Serializer import Serializer
 
 G, _, _, _, _, _, _ = get_grammar()
 
@@ -28,7 +30,8 @@ def run_pipeline(text):
     ret_text += '\n' + pprint_tokens(tokens)
     ret_text += '\n' + '=================== PARSE ====================='
     ret_text += '\n'
-    parser = LR1Parser(G)
+    parser = Serializer.load(os.getcwd() + '/parser')
+    #parser = LR1Parser(G)
     ret_parser = parser([t.token_type for t in tokens])
     parse, operations = ret_parser
     if parse is None:

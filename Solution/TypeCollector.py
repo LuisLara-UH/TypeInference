@@ -18,8 +18,8 @@ class TypeCollector(object):
     def visit(self, node):
         self.context = Context()
 
-        parent_type = self.context.create_type('object')
-        child_types = [self.context.create_type('str'), self.context.create_type('int'), self.context.create_type('bool'), self.context.create_type('IO'), self.context.create_type('void'), self.context.create_type('SELF_TYPE'), self.context.create_type('AUTO_TYPE')]
+        parent_type = self.context.create_type('Object')
+        child_types = [self.context.create_type('String'), self.context.create_type('Int'), self.context.create_type('Bool'), self.context.create_type('IO'), self.context.create_type('void'), self.context.create_type('SELF_TYPE'), self.context.create_type('AUTO_TYPE')]
         for child in child_types:
             child.set_parent(parent_type)
 

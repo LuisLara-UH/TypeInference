@@ -25,7 +25,6 @@ def common_ancestor(type_list):
         actual_type = actual_type.parent
         visited.append(actual_type)
 
-    print('visited', visited)
     for t in visited:
         ok = True
         for types in type_list:
@@ -35,8 +34,7 @@ def common_ancestor(type_list):
         if ok:
             print(t.name)
             return t
-
-    print("sali del ciclo y soy mongo")         
+       
         
 
 
@@ -107,7 +105,6 @@ class TypeChecker:
     def visit(self, node, scope=None, type_suggested=None):
         self.changed = False
         self.errors = []
-        print("entre")
         scope = Scope()
         for declaration in node.declarations:
             self.visit(declaration, scope.create_child())
@@ -159,8 +156,6 @@ class TypeChecker:
                 self.changed_atts[(node.id, self.current_type)]
             except KeyError:
                 if node.type == self.at.name:
-                    print(node.id, self.current_type.name)
-                    print("error autotype")
                     self.errors.append(AUTO_TYPE_ERROR % (node.id))
 
 
@@ -184,7 +179,6 @@ class TypeChecker:
                 new_scope.define_variable(param[0], self.context.get_type(param[1]))
         
         body_ret_type = self.visit(node.body, new_scope, None)
-        print('Body ret type', body_ret_type.name)
 
         if node.type == 'void':
             return
@@ -199,10 +193,10 @@ class TypeChecker:
         else:
             conform_type = ret_type    
 
+        print(node.id)
         if not body_ret_type.conforms_to(conform_type):
             self.errors.append(INCOMPATIBLE_TYPES % (body_ret_type.name, ret_type.name))
         if ret_type == self.at and not body_ret_type == self.at:
-            print('Return type of body changed')
             self.changed_methods[(node.id, self.current_type)] = body_ret_type
             self.changed = True          
 
@@ -246,21 +240,17 @@ class TypeChecker:
             
     @visitor.when(BranchNode)
     def visit(self, node, scope, type_suggested=None):
-        expr_type = self.visit(node.expr, scope, None)
-
         try:
             var_type = self.context.get_type(node.type)
         except:
             self.errors.append(TYPE_NOT_DEFINED % (node.type))
             var_type = ErrorType()
 
-        if not expr_type.conforms_to(var_type):
-            self.errors.append(INCOMPATIBLE_TYPES % (expr_type, var_type))
-            return ErrorType()
-        elif var_type == self.at and not expr_type == self.at:
-            return expr_type
+        child_scope = scope.create_child()
+        child_scope.define_variable(node.id, var_type)
+        expr_type = self.visit(node.expr, child_scope, None)
 
-        return var_type
+        return expr_type
 
     @visitor.when(LetNode)
     def visit(self, node, scope, type_suggested=None):
@@ -278,32 +268,38 @@ class TypeChecker:
 
         ret_types = []
         for branch in node.branches:
-            ret_types.append(self.visit(branch, new_scope, None))
+            ret_type = self.visit(branch, new_scope, None)
+            if ret_type.name == 'SELF_TYPE':
+                ret_type = self.current_type
+            ret_types.append(ret_type)
 
         ret_type = common_ancestor(ret_types)
-        if ret_type == ErrorType():
+        if ret_type.name == '<error>':
             self.errors.append('Case type error')
 
         return ret_type
 
     @visitor.when(AssignNode)
     def visit(self, node, scope, type_suggested=None):
-        expr_type = self.visit(node.expr, scope, None)
-        
         if not scope.is_defined(node.id):
             self.errors.append(VARIABLE_NOT_DEFINED % (node.id, self.current_method.name))
+            var_type = ErrorType()
         else:
             var = scope.find_variable(node.id)
             var_type = var.type
-            if not expr_type.conforms_to(var_type):
-                self.errors.append(INCOMPATIBLE_TYPES % (expr_type.name, var_type.name))
-            
-            if var_type == self.at and not expr_type == self.at:
-                if var.is_att:
-                    self.changed_atts[(node.id, self.current_type)] = expr_type
-                    self.changed = True
-                else:
-                    node.type = expr_type.name
+
+        expr_type = self.visit(node.expr, scope, var_type)
+        
+        
+        if not expr_type.conforms_to(var_type):
+            self.errors.append(INCOMPATIBLE_TYPES % (expr_type.name, var_type.name))
+        
+        if var_type == self.at and not expr_type == self.at:
+            if var.is_att:
+                self.changed_atts[(node.id, self.current_type)] = expr_type
+                self.changed = True
+            else:
+                node.type = expr_type.name
             
         return expr_type
     
@@ -311,9 +307,8 @@ class TypeChecker:
     def visit(self, node, scope, type_suggested=None):
         try:
             t, method = self.current_type.get_method(node.id)
-            print("recuperando metodo",t.name, method.name)
-        except SemanticError as e:
-            self.errors.append(e)
+        except SemanticError as error:
+            self.errors.append(error.text)
             return ErrorType()
 
         call_args_types = [self.visit(arg, scope, None) for arg in node.args]
@@ -325,6 +320,7 @@ class TypeChecker:
                 if not call_args_types[i].conforms_to(method_args_types[i]):
                     self.errors.append(INCOMPATIBLE_TYPES % (call_args_types[i].name, method_args_types[i].name))
 
+        ret_type = method.return_type
         if method.return_type.name == 'SELF_TYPE':
             ret_type = self.current_type
         else:
@@ -332,36 +328,27 @@ class TypeChecker:
                 try:
                     ret_type = self.changed_methods[(method.name, t)]
                 except KeyError:    
-                    ret_type = method.return_type
-                    
+                    pass
+
         return ret_type
 
     @visitor.when(DispatchNode)
     def visit(self, node, scope, type_suggested=None):
 
-        obj_type = scope.find_variable(node.obj)
-
-        if not obj_type is None:
-            obj_type = obj_type.type
-
-        else:
-            self.errors.append(VARIABLE_NOT_DEFINED % (node.obj))    
-            return ErrorType()
-
+        obj_type = self.visit(node.obj, scope)
+        
         if obj_type == self.at:
             self.errors.append('AUTO_TYPE error at function call ' + node.id)
             return ErrorType()
 
         _, method = obj_type.get_method(node.id)
         if method is None:
-            print('Entra a dispatch 1')
             self.errors.append(METHOD_NOT_DEFINED % (node.id, obj_type.name))
             return ErrorType()
 
         call_args_types = [self.visit(arg, scope, None) for arg in node.args]
         method_args_types = [param_type for param_type in method.param_types]
         if not len(call_args_types) == len(method_args_types):
-            print('Entra a dispatch 2')
             self.errors.append(METHOD_NOT_DEFINED % (node.id, self.current_type.name))
         else:
             for i in range(len(call_args_types)):
@@ -375,60 +362,54 @@ class TypeChecker:
 
         try:
             type_changed = self.changed_methods[(node.id, obj_type)]
-            print("siiiiii " + type_changed.name + " " + ret_type.name)
-            if ret_type.name == self.at.name:
-                print ("cambiando de " + ret_type.name + " a " + type_changed.name) 
+            if ret_type.name == self.at.name: 
                 ret_type = type_changed
         except KeyError:
             pass
-        print(obj_type.name, node.id)   
-        print(ret_type.name)
+        
         return ret_type
 
     @visitor.when(ConditionalNode)
     def visit(self, node, scope, type_suggested=None):
-        pred_type = self.visit(node.pred, scope, self.context.get_type('bool'))
+        pred_type = self.visit(node.pred, scope, self.context.get_type('Bool'))
         then_type = self.visit(node.then_expr, scope, None)
         else_type = self.visit(node.else_expr, scope, None)
 
-        if not pred_type.conforms_to(self.context.get_type('bool')):
-            self.errors.append(INCOMPATIBLE_TYPES % (pred_type.name, 'bool'))
+        if not pred_type.conforms_to(self.context.get_type('Bool')):
+            self.errors.append(INCOMPATIBLE_TYPES % (pred_type.name, 'Bool'))
 
-        print('then type', then_type.name)
-        print('else type', else_type.name)
         body_type = common_ancestor([then_type, else_type])
 
-        print('if', body_type.name)
         return body_type
 
     @visitor.when(LoopNode)
     def visit(self, node, scope, type_suggested=None):
-        pred_type = self.visit(node.pred, scope, self.context.get_type('bool'))
+        pred_type = self.visit(node.pred, scope, self.context.get_type('Bool'))
         self.visit(node.body, scope, None)
 
-        if not pred_type.conforms_to(self.context.get_type('bool')):
-            self.errors.append(INCOMPATIBLE_TYPES % (pred_type.name, 'bool'))
+        if not pred_type.conforms_to(self.context.get_type('Bool')):
+            self.errors.append(INCOMPATIBLE_TYPES % (pred_type.name, 'Bool'))
 
         return self.context.get_type('void')
 
     @visitor.when(BinaryArithNode)
     def visit(self, node, scope, type_suggested=None):
-        left_type = self.visit(node.left, scope, self.context.get_type('int'))
-        right_type = self.visit(node.right, scope, self.context.get_type('int'))
+        left_type = self.visit(node.left, scope, self.context.get_type('Int'))
+        right_type = self.visit(node.right, scope, self.context.get_type('Int'))
         
-        int_ = self.context.get_type('int')
+        int_ = self.context.get_type('Int')
         
         if not (right_type.conforms_to(int_) or left_type.conforms_to(int_)):
             self.errors.append(INVALID_OPERATION % (left_type.name, right_type.name))
             return ErrorType()
 
-        return self.context.get_type('int')
+        return self.context.get_type('Int')
 
     @visitor.when(MinorNode)
     def visit(self, node, scope, type_suggested=None):
         
 
-        type_suggested = self.context.get_type('int')
+        type_suggested = self.context.get_type('Int')
         left_type = self.visit(node.left, scope, type_suggested)
         right_type = self.visit(node.right, scope, type_suggested)
         
@@ -436,7 +417,7 @@ class TypeChecker:
             self.errors.append(INVALID_OPERATION % (left_type.name, right_type.name))
             return ErrorType()
 
-        return self.context.get_type('bool')
+        return self.context.get_type('Bool')
 
     @visitor.when(EqualNode)
     def visit(self, node, scope, type_suggested=None):
@@ -444,26 +425,25 @@ class TypeChecker:
         self.visit(node.left, scope, None)
         self.visit(node.right, scope, None)
         
-        return self.context.get_type('bool')    
+        return self.context.get_type('Bool')    
 
     @visitor.when(MinorEqualNode)
     def visit(self, node, scope, type_suggested=None):
         
 
-        type_suggested = self.context.get_type('int')
+        type_suggested = self.context.get_type('Int')
         left_type = self.visit(node.left, scope, type_suggested)
         right_type = self.visit(node.right, scope, type_suggested)
         
         if not type_suggested is None and (not right_type.conforms_to(type_suggested) or not left_type.conforms_to(type_suggested)):
             self.errors.append(INVALID_OPERATION % (left_type.name, right_type.name))
-            print("El error mas al berro del mundo")
             return ErrorType()
 
-        return self.context.get_type('bool')
+        return self.context.get_type('Bool')
     
     @visitor.when(ConstantNumNode)
     def visit(self, node, scope, type_suggested=None):
-        return self.context.get_type('int')
+        return self.context.get_type('Int')
 
     @visitor.when(VariableNode)
     def visit(self, node, scope, type_suggested=None):
@@ -490,35 +470,35 @@ class TypeChecker:
 
     @visitor.when(StringNode)
     def visit(self, node, scope, type_suggested=None):
-        return self.context.get_type('str')
+        return self.context.get_type('String')
 
     @visitor.when(BooleanNode)
     def visit(self, node, scope, type_suggested=None):
-        return self.context.get_type('bool')
+        return self.context.get_type('Bool')
 
     @visitor.when(NotNode)
     def visit(self, node, scope, type_suggested=None):
-        body_type = self.visit(node.lex, scope, self.context.get_type('bool'))
+        body_type = self.visit(node.lex, scope, self.context.get_type('Bool'))
 
-        if not body_type.conforms_to(self.context.get_type('bool')):
-            self.errors.append(INCOMPATIBLE_TYPES % (body_type.name, 'bool'))
+        if not body_type.conforms_to(self.context.get_type('Bool')):
+            self.errors.append(INCOMPATIBLE_TYPES % (body_type.name, 'Bool'))
 
-        return self.context.get_type('bool')
+        return self.context.get_type('Bool')
 
     @visitor.when(IsVoidNode)
     def visit(self, node, scope, type_suggested=None):
         self.visit(node.lex, scope, None)
 
-        return self.context.get_type('bool')
+        return self.context.get_type('Bool')
 
     @visitor.when(ComplementNode)
     def visit(self, node, scope, type_suggested=None):
-        body_expr = self.visit(node.lex, scope, self.context.get_type('int'))
+        body_expr = self.visit(node.lex, scope, self.context.get_type('Int'))
 
-        if not body_expr.conforms_to(self.context.get_type('int')):
-            self.errors.append(INCOMPATIBLE_TYPES % (body_expr.name, 'bool'))
+        if not body_expr.conforms_to(self.context.get_type('Int')):
+            self.errors.append(INCOMPATIBLE_TYPES % (body_expr.name, 'Bool'))
 
-        return self.context.get_type('int')
+        return self.context.get_type('Int')
 
     @visitor.when(SelfNode)
     def visit(self, node, scope, type_suggested=None):
@@ -531,5 +511,12 @@ class TypeChecker:
         except SemanticError as error:
             self.errors.append(error.text)
             return ErrorType()
+
+    @visitor.when(BlockNode)
+    def visit(self, node, scope, type_suggested=None):
+        for expr in node.expr_list:
+            ret_expr = self.visit(expr, scope)
+
+        return ret_expr
 
     

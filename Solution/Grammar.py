@@ -82,54 +82,54 @@ def get_grammar():
     atom %= num, lambda h,s: ConstantNumNode(s[1])
     atom %= string, lambda h,s: StringNode(s[1])
     atom %= _self, lambda h,s: SelfNode(s[1])
-
+    
     atom %= true, lambda h,s: BooleanNode(s[1])
     atom %= false, lambda h,s: BooleanNode(s[1])
 
     atom %= opar + expr + cpar, lambda h,s: s[2] #####
 
-    #atom %= _not + atom, lambda h,s: NotNode(s[2])
+    atom %= _not + atom, lambda h,s: NotNode(s[2])
     
     atom %= func_call, lambda h,s: s[1]
     
     atom %= new + idx, lambda h,s: InstantiateNode(s[2])
-    #atom %= isvoid + atom, lambda h,s: IsVoidNode(s[2])
-    #atom %= complement + atom, lambda h,s: ComplementNode(s[2])
+    atom %= isvoid + atom, lambda h,s: IsVoidNode(s[2])
+    atom %= complement + atom, lambda h,s: ComplementNode(s[2])
     
     atom %= idx + left_arrow + atom, lambda h,s: AssignNode(s[1], s[3])
     
     atom %= if_expr, lambda h,s: s[1]
-    #atom %= while_expr, lambda h,s: s[1]
-    #atom %= block, lambda h,s: s[1]
-    #atom %= let_expr, lambda h,s: s[1]
-    #atom %= case_expr, lambda h,s: s[1]
+    atom %= while_expr, lambda h,s: s[1]
+    atom %= block, lambda h,s: s[1]
+    atom %= let_expr, lambda h,s: s[1]
+    atom %= case_expr, lambda h,s: s[1]
     
     # <if-expr>
     if_expr %= _if + expr + then + expr + _else + expr + fi, lambda h,s: ConditionalNode(s[2], s[4], s[6])
 
     # <while-expr>
-    #while_expr %= _while + expr + loop + expr + pool, lambda h,s: LoopNode(s[2], s[4])
+    while_expr %= _while + expr + loop + expr + pool, lambda h,s: LoopNode(s[2], s[4])
 
     # <block>
-    #block %= ocur + expr_list + ccur, lambda h,s: s[2]
+    block %= ocur + expr_list + ccur, lambda h,s: BlockNode(s[2])
     
     # <let-expr>
-    #let_expr %= let + let_att + _in + atom, lambda h,s: LetNode(s[2], s[4])
+    let_expr %= let + let_att + _in + atom, lambda h,s: LetNode(s[2], s[4])
 
     # <let-att>
-    #let_att %= var_decl, lambda h,s: [ s[1] ]
-    #let_att %= var_decl + comma + let_att, lambda h,s: [ s[1] ] + s[3]
+    let_att %= var_decl, lambda h,s: [ s[1] ]
+    let_att %= var_decl + comma + let_att, lambda h,s: [ s[1] ] + s[3]
 
     # <var-decl>
-    #var_decl %= idx + colon + idx, lambda h,s: VarDeclarationNode(s[1], s[3])
-    #var_decl %= idx + colon + idx + left_arrow + expr, lambda h,s: VarDeclarationNode(s[1], s[3], s[5])
+    var_decl %= idx + colon + idx, lambda h,s: VarDeclarationNode(s[1], s[3])
+    var_decl %= idx + colon + idx + left_arrow + expr, lambda h,s: VarDeclarationNode(s[1], s[3], s[5])
     
     # <case-expr>
-    #case_expr %= case + expr + of + case_body + esac, lambda h,s: CaseNode(s[2], s[4])
+    case_expr %= case + expr + of + case_body + esac, lambda h,s: CaseNode(s[2], s[4])
 
     # <case-body>
-    #case_body %= idx + colon + idx + right_arrow + expr + semi, lambda h,s: [ BranchNode(s[1], s[3], s[5]) ]
-    #case_body %= idx + colon + idx + right_arrow + expr + semi + case_body, lambda h,s: [ BranchNode(s[1], s[3], s[5]) ] + s[7]
+    case_body %= idx + colon + idx + right_arrow + expr + semi, lambda h,s: [ BranchNode(s[1], s[3], s[5]) ]
+    case_body %= idx + colon + idx + right_arrow + expr + semi + case_body, lambda h,s: [ BranchNode(s[1], s[3], s[5]) ] + s[7]
 
     # <expr-list>
     expr_list %= expr + semi, lambda h,s: [ s[1] ]
@@ -137,12 +137,13 @@ def get_grammar():
 
     # <func-call>    
     func_call %= idx + opar + arg_list + cpar, lambda h,s: CallNode(s[1], s[3])
-    func_call %= idx + dot + idx + opar + arg_list + cpar, lambda h,s: DispatchNode(s[1], s[3], s[5])
-    #func_call %= opar + expr + cpar + dot + idx + opar + arg_list + cpar, lambda h,s: DispatchNode(s[2], s[5], s[7])
-    #func_call %= idx + at + idx + dot + idx + opar + arg_list + cpar, lambda h,s: DispatchNode(s[1], s[5], s[7], s[3])
-    #func_call %= opar + expr + cpar + at + idx + dot + idx + opar + arg_list + cpar, lambda h,s: DispatchNode(s[2], s[7], s[9], s[5])
-    #func_call %= func_call + dot + idx + opar + arg_list + cpar, lambda h,s: DispatchNode(s[1], s[3], s[5])
-    #func_call %= func_call + at + idx + dot + idx + opar + arg_list + cpar, lambda h,s: DispatchNode(s[1], s[5], s[7], s[3])
+    func_call %= idx + dot + idx + opar + arg_list + cpar, lambda h,s: DispatchNode(VariableNode(s[1]), s[3], s[5])
+    func_call %= _self + dot + idx + opar + arg_list + cpar, lambda h,s: DispatchNode(SelfNode(s[1]), s[3], s[5])
+    func_call %= opar + expr + cpar + dot + idx + opar + arg_list + cpar, lambda h,s: DispatchNode(s[2], s[5], s[7])
+    func_call %= idx + at + idx + dot + idx + opar + arg_list + cpar, lambda h,s: DispatchNode(s[1], s[5], s[7], s[3])
+    func_call %= opar + expr + cpar + at + idx + dot + idx + opar + arg_list + cpar, lambda h,s: DispatchNode(s[2], s[7], s[9], s[5])
+    func_call %= func_call + dot + idx + opar + arg_list + cpar, lambda h,s: DispatchNode(s[1], s[3], s[5])
+    func_call %= func_call + at + idx + dot + idx + opar + arg_list + cpar, lambda h,s: DispatchNode(s[1], s[5], s[7], s[3])
     
     # <arg-list>
     arg_list %= G.Epsilon, lambda h,s: []
@@ -151,5 +152,6 @@ def get_grammar():
     # <arg-list-formal>
     arg_list_formal %= expr, lambda h,s: [ s[1] ]
     arg_list_formal %= expr + comma + arg_list_formal, lambda h,s: [ s[1] ] + s[3]
+    
     
     return G, idx, num, string, ocur, ccur, semi

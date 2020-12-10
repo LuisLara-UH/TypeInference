@@ -10,7 +10,7 @@ class TypeBuilder:
         self.context = context
         self.current_type = None
         self.errors = errors
-        self.basic_types = [self.context.get_type('AUTO_TYPE'), self.context.get_type('SELF_TYPE'), self.context.get_type('int'), self.context.get_type('str'), self.context.get_type('bool'), self.context.get_type('void'), self.context.get_type('IO')]
+        self.basic_types = [self.context.get_type('AUTO_TYPE'), self.context.get_type('SELF_TYPE'), self.context.get_type('Int'), self.context.get_type('String'), self.context.get_type('Bool'), self.context.get_type('void')]
     
     @visitor.on('node')
     def visit(self, node):
@@ -18,6 +18,26 @@ class TypeBuilder:
     
     @visitor.when(ProgramNode)
     def visit(self, node):
+        #define methods of basic classes
+        Object_type = self.context.get_type('Object')
+        IO_type = self.context.get_type('IO')
+        String_type = self.context.get_type('String')
+        Int_Type = self.context.get_type('Int')
+        Self_Type = self.context.get_type('SELF_TYPE')
+
+        Object_type.define_method('abort', [], [], Object_type)
+        Object_type.define_method('copy', [], [], Object_type)
+        Object_type.define_method('type_name', [], [], String_type)
+
+        IO_type.define_method('in_string', [], [], String_type)
+        IO_type.define_method('in_int', [], [], Int_Type)
+        IO_type.define_method('out_string', ['x'], [String_type], Self_Type)
+        IO_type.define_method('out_int', ['x'], [Int_Type], Self_Type)
+
+        String_type.define_method('length', [], [], Int_Type)
+        String_type.define_method('concat', ['s'], [String_type], String_type)
+        String_type.define_method('substr', ['i', 'l'], [Int_Type, Int_Type], String_type)
+
         for declaration in node.declarations:
             self.visit(declaration)
         
@@ -44,7 +64,7 @@ class TypeBuilder:
                 self.errors.append(error.text)
         
         else:
-            self.current_type.set_parent(self.context.get_type('object'))
+            self.current_type.set_parent(self.context.get_type('Object'))
 
         for feature in node.features:
             self.visit(feature)
